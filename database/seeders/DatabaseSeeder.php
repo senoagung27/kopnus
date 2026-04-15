@@ -96,6 +96,34 @@ class DatabaseSeeder extends Seeder
             ],
         );
 
+        $dummyJobSpecs = [
+            ['title' => '[Seed] Analis Data Junior', 'published' => true, 'days_ago' => 30],
+            ['title' => '[Seed] DevOps Engineer (AWS)', 'published' => true, 'days_ago' => 28],
+            ['title' => '[Seed] Frontend Developer — React', 'published' => true, 'days_ago' => 25],
+            ['title' => '[Seed] QA Automation (Playwright)', 'published' => true, 'days_ago' => 22],
+            ['title' => '[Seed] Mobile Flutter Developer', 'published' => true, 'days_ago' => 18],
+            ['title' => '[Seed] Technical Writer Remote', 'published' => true, 'days_ago' => 14],
+            ['title' => '[Seed] Product Owner IT', 'published' => true, 'days_ago' => 10],
+            ['title' => '[Seed] UI/UX Designer', 'published' => true, 'days_ago' => 7],
+            ['title' => '[Seed] Internship Backend (Draft)', 'published' => false, 'days_ago' => 0],
+            ['title' => '[Seed] Security Engineer (Draft)', 'published' => false, 'days_ago' => 0],
+        ];
+
+        foreach ($dummyJobSpecs as $spec) {
+            $published = $spec['published'];
+            Job::query()->updateOrCreate(
+                [
+                    'employer_id' => $employerA->id,
+                    'title' => $spec['title'],
+                ],
+                [
+                    'description' => "Deskripsi contoh untuk {$spec['title']}.\n\nTanggung jawab, syarat, dan benefit dapat disesuaikan di aplikasi nyata.\nData ini hanya untuk pengujian dan demo MX100.",
+                    'status' => $published ? Job::STATUS_PUBLISHED : Job::STATUS_DRAFT,
+                    'published_at' => $published ? now()->subDays($spec['days_ago']) : null,
+                ],
+            );
+        }
+
         JobApplication::query()->updateOrCreate(
             [
                 'job_id' => $publishedJob1->id,
@@ -130,5 +158,6 @@ class DatabaseSeeder extends Seeder
             ]
         );
         $this->command->info("Draft job ID: {$draftJob->id} (not visible to freelancers).");
+        $this->command->info('10 lowongan dummy [Seed] untuk employer@mx100.test (8 published, 2 draft).');
     }
 }

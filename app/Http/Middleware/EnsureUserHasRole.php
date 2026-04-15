@@ -15,7 +15,18 @@ class EnsureUserHasRole
     {
         $user = $request->user();
 
-        if (! $user || ! in_array($user->role, $roles, true)) {
+        if (! $user) {
+            return response()->json([
+                'message' => 'Unauthenticated.',
+                'data' => null,
+            ], 401);
+        }
+
+        if ($user->isSuperadmin()) {
+            return $next($request);
+        }
+
+        if (! in_array($user->role, $roles, true)) {
             return response()->json([
                 'message' => 'Forbidden.',
                 'data' => null,

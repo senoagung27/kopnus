@@ -4,9 +4,11 @@ namespace App\Providers;
 
 use App\Models\Job;
 use App\Models\JobApplication;
+use App\Models\User;
 use App\Policies\JobApplicationPolicy;
 use App\Policies\JobPolicy;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
+use Illuminate\Support\Facades\Gate;
 
 class AuthServiceProvider extends ServiceProvider
 {
@@ -25,6 +27,12 @@ class AuthServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        Gate::before(function (?User $user): ?bool {
+            if ($user?->isSuperadmin()) {
+                return true;
+            }
+
+            return null;
+        });
     }
 }

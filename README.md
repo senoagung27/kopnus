@@ -62,7 +62,10 @@ Jalankan server pengembangan:
 php artisan serve
 ```
 
-Basis URL API: `http://localhost:8000/api` (sesuaikan host/port).
+Basis URL API (sesuaikan dengan cara Anda menjalankan app):
+
+- **Docker Compose** (Nginx di `docker-compose.yml`): `http://localhost:8080/api` — port bisa diubah lewat `APP_PORT` di `.env`.
+- **`php artisan serve`**: `http://localhost:8000/api` (default) atau host/port yang ditampilkan di terminal.
 
 ## Autentikasi
 
@@ -76,6 +79,7 @@ API memakai **Laravel Sanctum** (token Bearer).
 
 - **employer** — akses route di bawah `/api/v1/employer/...`
 - **freelancer** — akses `/api/v1/jobs` dan submit lamaran
+- **superadmin** — boleh memanggil route employer maupun freelancer (untuk uji/admin); daftar lowongan employer tetap difilter `employer_id` = user yang login, jadi akun superadmin biasanya menampilkan daftar kosong kecuali Anda menambah lowongan untuk user itu.
 
 ## Dokumentasi endpoint
 
@@ -84,12 +88,12 @@ Ringkasan lengkap skema DB, aturan bisnis, dan daftar endpoint ada di [planning.
 ## Postman
 
 1. Impor [postman/MX100.postman_collection.json](postman/MX100.postman_collection.json)
-2. Impor environment [postman/MX100.postman_environment.json](postman/MX100.postman_environment.json) (sesuaikan `base_url`)
+2. Impor environment [postman/MX100.postman_environment.json](postman/MX100.postman_environment.json) — default `base_url` mengarah ke Docker (`http://localhost:8080/api`); ganti ke `http://localhost:8000/api` jika memakai `php artisan serve`.
 3. Setelah login/register, salin token ke variabel environment `token` (atau isi manual di header koleksi)
 
 ## Sample data (seeder)
 
-Setelah `php artisan db:seed`, gunakan akun berikut (password **`password`**):
+Setelah `php artisan db:seed`, gunakan akun berikut (password **`password`**). Untuk `employer@mx100.test` ada tambahan **10 lowongan dummy** bertanda `[Seed]` (8 published, 2 draft) selain contoh bawaan.
 
 | Email | Role |
 |-------|------|
