@@ -1,0 +1,14 @@
+.git
+.gitignore
+.idea
+.vscode
+node_modules
+vendor
+.env
+*.md
+docker-compose.override.yml
+.phpunit.result.cache
+storage/logs/*
+!storage/logs/.gitignore
+bootstrap/cache/*
+!bootstrap/cache/.gitignore

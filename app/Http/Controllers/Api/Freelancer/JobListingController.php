@@ -6,10 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\JobResource;
 use App\Models\Job;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Resources\Json\ResourceCollection;
 
 class JobListingController extends Controller
 {
-    public function index(): JsonResponse
+    public function index(): ResourceCollection
     {
         $jobs = Job::query()
             ->published()

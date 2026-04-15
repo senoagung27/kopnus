@@ -58,9 +58,21 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
-            'options' => extension_loaded('pdo_mysql') ? array_filter([
-                PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
-            ]) : [],
+            'options' => extension_loaded('pdo_mysql') ? array_filter(
+                (static function (): array {
+                    $ca = env('MYSQL_ATTR_SSL_CA');
+                    if ($ca === null || $ca === '') {
+                        return [];
+                    }
+
+                    // PHP 8.5+ deprecates PDO::MYSQL_ATTR_SSL_CA in favor of Pdo\Mysql::ATTR_SSL_CA
+                    $attribute = PHP_VERSION_ID >= 80500 && class_exists(\Pdo\Mysql::class)
+                        ? \Pdo\Mysql::ATTR_SSL_CA
+                        : \PDO::MYSQL_ATTR_SSL_CA;
+
+                    return [$attribute => $ca];
+                })()
+            ) : [],
         ],
 
         'pgsql' => [

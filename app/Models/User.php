@@ -17,6 +17,8 @@ class User extends Authenticatable
 
     public const ROLE_FREELANCER = 'freelancer';
 
+    public const ROLE_SUPERADMIN = 'superadmin';
+
     /**
      * The attributes that are mass assignable.
      *
@@ -57,6 +59,11 @@ class User extends Authenticatable
     public function isFreelancer(): bool
     {
         return $this->role === self::ROLE_FREELANCER;
+    }
+
+    public function isSuperadmin(): bool
+    {
+        return $this->role === self::ROLE_SUPERADMIN;
     }
 
     public function postedJobs(): HasMany

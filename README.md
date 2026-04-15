@@ -18,17 +18,40 @@ cp .env.example .env   # jika belum ada .env
 php artisan key:generate
 ```
 
-Sesuaikan `DB_*` di `.env` (lihat [.env.example](.env.example)). Default: **MySQL** — buat database kosong terlebih dahulu, misalnya:
+Sesuaikan `DB_*` di **`.env`** (bukan hanya `.env.example`). Default di contoh: user **`mx100`**, bukan `root`.
+
+Buat database dan user (jalankan di klien `mysql` — di Mac/Homebrew coba `mysql -u root` atau `/opt/homebrew/opt/mysql/bin/mysql -u root`; di Linux sering `sudo mysql -u root`):
 
 ```sql
-CREATE DATABASE mx100 CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS mx100 CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- PHP dengan DB_HOST=127.0.0.1 menghubungi MySQL sebagai host 127.0.0.1 (bukan "localhost"). Buat user untuk kedua host:
+CREATE USER 'mx100'@'127.0.0.1' IDENTIFIED BY 'ganti_sandi_anda';
+CREATE USER 'mx100'@'localhost' IDENTIFIED BY 'ganti_sandi_anda';
+GRANT ALL PRIVILEGES ON mx100.* TO 'mx100'@'127.0.0.1';
+GRANT ALL PRIVILEGES ON mx100.* TO 'mx100'@'localhost';
+FLUSH PRIVILEGES;
 ```
 
-Pastikan layanan MySQL berjalan dan kredensial (`DB_USERNAME`, `DB_PASSWORD`, `DB_DATABASE`) benar.
+(Jika `CREATE USER` gagal karena user sudah ada, lanjut ke `GRANT` saja atau `ALTER USER ... IDENTIFIED BY ...` untuk menyamakan sandi.)
 
-Jalankan migrasi dan seeder:
+```env
+DB_HOST=127.0.0.1
+DB_DATABASE=mx100
+DB_USERNAME=mx100
+DB_PASSWORD=ganti_sandi_anda
+```
+
+#### SQLSTATE 1698 — `Access denied for user 'root'@'localhost'`
+
+Artinya Laravel masih membaca **`DB_USERNAME=root`** di `.env`, atau `root` di server Anda **tidak boleh** login dari PHP (plugin `unix_socket` / MariaDB).
+
+**Yang wajib:** ubah `.env` ke user khusus (mis. `mx100`) + sandi seperti di atas — **jangan memakai `root` untuk aplikasi**.
+
+Setelah mengubah `.env`, jalankan lagi:
 
 ```bash
+php artisan config:clear
 php artisan migrate --seed
 php artisan storage:link
 ```
@@ -70,6 +93,7 @@ Setelah `php artisan db:seed`, gunakan akun berikut (password **`password`**):
 
 | Email | Role |
 |-------|------|
+| superadmin@mx100.test | superadmin |
 | employer@mx100.test | employer |
 | hr@startup.test | employer |
 | budi@freelancer.test | freelancer |

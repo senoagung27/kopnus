@@ -10,6 +10,7 @@ use App\Models\Job;
 use App\Services\JobService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\ResourceCollection;
 
 class JobController extends Controller
 {
@@ -17,7 +18,7 @@ class JobController extends Controller
         private readonly JobService $jobService
     ) {}
 
-    public function index(Request $request): JsonResponse
+    public function index(Request $request): ResourceCollection
     {
         $this->authorize('viewAny', Job::class);
 

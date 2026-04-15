@@ -6,85 +6,123 @@ use App\Models\Job;
 use App\Models\JobApplication;
 use App\Models\User;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\Hash;
 
 class DatabaseSeeder extends Seeder
 {
     /**
      * Seed the application's database with MX100 sample data.
+     * Aman dijalankan ulang (idempoten) berdasarkan email / kunci unik.
      */
     public function run(): void
     {
-        $employerA = User::query()->create([
-            'name' => 'PT Contoh Sejahtera',
-            'email' => 'employer@mx100.test',
-            'password' => Hash::make('password'),
-            'role' => User::ROLE_EMPLOYER,
-        ]);
+        User::query()->updateOrCreate(
+            ['email' => 'superadmin@mx100.test'],
+            [
+                'name' => 'Super Admin',
+                'password' => 'password',
+                'role' => User::ROLE_SUPERADMIN,
+            ],
+        );
 
-        $employerB = User::query()->create([
-            'name' => 'Startup Nusantara',
-            'email' => 'hr@startup.test',
-            'password' => Hash::make('password'),
-            'role' => User::ROLE_EMPLOYER,
-        ]);
+        $employerA = User::query()->updateOrCreate(
+            ['email' => 'employer@mx100.test'],
+            [
+                'name' => 'PT Contoh Sejahtera',
+                'password' => 'password',
+                'role' => User::ROLE_EMPLOYER,
+            ],
+        );
 
-        $freelancer1 = User::query()->create([
-            'name' => 'Budi Freelancer',
-            'email' => 'budi@freelancer.test',
-            'password' => Hash::make('password'),
-            'role' => User::ROLE_FREELANCER,
-        ]);
+        $employerB = User::query()->updateOrCreate(
+            ['email' => 'hr@startup.test'],
+            [
+                'name' => 'Startup Nusantara',
+                'password' => 'password',
+                'role' => User::ROLE_EMPLOYER,
+            ],
+        );
 
-        $freelancer2 = User::query()->create([
-            'name' => 'Siti Expert',
-            'email' => 'siti@freelancer.test',
-            'password' => Hash::make('password'),
-            'role' => User::ROLE_FREELANCER,
-        ]);
+        $freelancer1 = User::query()->updateOrCreate(
+            ['email' => 'budi@freelancer.test'],
+            [
+                'name' => 'Budi Freelancer',
+                'password' => 'password',
+                'role' => User::ROLE_FREELANCER,
+            ],
+        );
 
-        $draftJob = Job::query()->create([
-            'employer_id' => $employerA->id,
-            'title' => 'Backend Developer (Draft)',
-            'description' => "Lowongan masih disimpan sebagai draf.\nBelum terlihat oleh freelancer.",
-            'status' => Job::STATUS_DRAFT,
-            'published_at' => null,
-        ]);
+        $freelancer2 = User::query()->updateOrCreate(
+            ['email' => 'siti@freelancer.test'],
+            [
+                'name' => 'Siti Expert',
+                'password' => 'password',
+                'role' => User::ROLE_FREELANCER,
+            ],
+        );
 
-        $publishedJob1 = Job::query()->create([
-            'employer_id' => $employerA->id,
-            'title' => 'Laravel API Developer',
-            'description' => "Membangun REST API untuk portal job.\nPengalaman Laravel 10+ dan Sanctum.",
-            'status' => Job::STATUS_PUBLISHED,
-            'published_at' => now()->subDays(2),
-        ]);
+        $draftJob = Job::query()->updateOrCreate(
+            [
+                'employer_id' => $employerA->id,
+                'title' => 'Backend Developer (Draft)',
+            ],
+            [
+                'description' => "Lowongan masih disimpan sebagai draf.\nBelum terlihat oleh freelancer.",
+                'status' => Job::STATUS_DRAFT,
+                'published_at' => null,
+            ],
+        );
 
-        $publishedJob2 = Job::query()->create([
-            'employer_id' => $employerB->id,
-            'title' => 'UI Reviewer Part-time',
-            'description' => 'Review komponen UI dan aksesibilitas, remote.',
-            'status' => Job::STATUS_PUBLISHED,
-            'published_at' => now()->subDay(),
-        ]);
+        $publishedJob1 = Job::query()->updateOrCreate(
+            [
+                'employer_id' => $employerA->id,
+                'title' => 'Laravel API Developer',
+            ],
+            [
+                'description' => "Membangun REST API untuk portal job.\nPengalaman Laravel 10+ dan Sanctum.",
+                'status' => Job::STATUS_PUBLISHED,
+                'published_at' => now()->subDays(2),
+            ],
+        );
 
-        JobApplication::query()->create([
-            'job_id' => $publishedJob1->id,
-            'freelancer_id' => $freelancer1->id,
-            'cover_letter' => 'Saya berpengalaman 3 tahun membangun API dengan Laravel.',
-            'cv_file_path' => null,
-        ]);
+        $publishedJob2 = Job::query()->updateOrCreate(
+            [
+                'employer_id' => $employerB->id,
+                'title' => 'UI Reviewer Part-time',
+            ],
+            [
+                'description' => 'Review komponen UI dan aksesibilitas, remote.',
+                'status' => Job::STATUS_PUBLISHED,
+                'published_at' => now()->subDay(),
+            ],
+        );
 
-        JobApplication::query()->create([
-            'job_id' => $publishedJob2->id,
-            'freelancer_id' => $freelancer2->id,
-            'cover_letter' => 'Spesialis UI/UX dan testing aksesibilitas.',
-            'cv_file_path' => null,
-        ]);
+        JobApplication::query()->updateOrCreate(
+            [
+                'job_id' => $publishedJob1->id,
+                'freelancer_id' => $freelancer1->id,
+            ],
+            [
+                'cover_letter' => 'Saya berpengalaman 3 tahun membangun API dengan Laravel.',
+                'cv_file_path' => null,
+            ],
+        );
+
+        JobApplication::query()->updateOrCreate(
+            [
+                'job_id' => $publishedJob2->id,
+                'freelancer_id' => $freelancer2->id,
+            ],
+            [
+                'cover_letter' => 'Spesialis UI/UX dan testing aksesibilitas.',
+                'cv_file_path' => null,
+            ],
+        );
 
         $this->command->info('Sample users (password: password):');
         $this->command->table(
             ['Email', 'Role'],
             [
+                ['superadmin@mx100.test', 'superadmin'],
                 ['employer@mx100.test', 'employer'],
                 ['hr@startup.test', 'employer'],
                 ['budi@freelancer.test', 'freelancer'],
