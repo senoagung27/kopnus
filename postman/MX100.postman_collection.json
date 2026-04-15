@@ -1,212 +1,494 @@
 {
   "info": {
     "name": "MX100 Job Portal API",
-    "description": "REST API untuk portal MX100 (Laravel). Set environment `base_url` (e.g. http://localhost:8000/api) dan `token` dari login/register. Header Authorization: Bearer {{token}} untuk route yang memerlukan auth.",
+    "description": "# MX100 Job Portal API\n\nREST API **Laravel 10+** dengan **Laravel Sanctum** (Bearer token). Prefix global: `{APP_URL}/api` — di Postman isi **`base_url`** sampai `/api` (bukan slash akhir).\n\n**Repo:** lihat `README.md` (cara jalan) dan `planning.md` (skema DB & aturan bisnis).\n\n---\n\n## Variabel Postman\n\n| Variabel | Wajib | Keterangan |\n|----------|--------|------------|\n| **base_url** | Ya | Contoh: `http://localhost:8000/api` atau `http://localhost:8080/api` (Docker nginx). |\n| **token** | Untuk route auth | Salin dari respons `data.token`, atau jalankan **Login** / **Register** — tab **Tests** mengisi otomatis (environment + collection). |\n| **job_id** | Untuk URL `.../jobs/{id}` | Ganti ke ID nyata (dari seed, atau setelah **Create job**). |\n\n---\n\n## Ringkasan endpoint\n\n### Publik (tanpa Bearer)\n\n| Method | Path | Keterangan |\n|--------|------|------------|\n| POST | `/v1/register` | Daftar `employer` atau `freelancer` |\n| POST | `/v1/login` | Login; dapat token |\n\n### Terproteksi (`Authorization: Bearer {{token}}`)\n\n| Method | Path | Peran |\n|--------|------|--------|\n| POST | `/v1/logout` | Semua |\n| GET | `/v1/user` | Semua |\n| GET | `/v1/employer/jobs` | employer / superadmin |\n| POST | `/v1/employer/jobs` | employer / superadmin |\n| GET | `/v1/employer/jobs/{id}` | employer / superadmin |\n| PUT | `/v1/employer/jobs/{id}` | employer / superadmin |\n| PATCH | `/v1/employer/jobs/{id}` | employer / superadmin |\n| DELETE | `/v1/employer/jobs/{id}` | employer / superadmin |\n| POST | `/v1/employer/jobs/{id}/publish` | employer / superadmin |\n| GET | `/v1/employer/jobs/{id}/applications` | employer / superadmin |\n| GET | `/v1/jobs` | freelancer / superadmin |\n| GET | `/v1/jobs/{id}` | freelancer / superadmin |\n| POST | `/v1/jobs/{id}/applications` | freelancer / superadmin |\n\n---\n\n## Contoh respons sukses\n\n**Register / Login (200 atau 201)**\n\n```json\n{\n  \"message\": \"Logged in successfully.\",\n  \"data\": {\n    \"user\": { \"id\": 1, \"name\": \"...\", \"email\": \"...\", \"role\": \"employer\", \"created_at\": \"...\" },\n    \"token\": \"1|xxxxxxxx\",\n    \"token_type\": \"Bearer\"\n  }\n}\n```\n\n**Me — GET /v1/user**\n\n```json\n{ \"message\": \"OK\", \"data\": { \"id\": 1, \"name\": \"...\", \"email\": \"...\", \"role\": \"employer\", \"created_at\": \"...\" } }\n```\n\n**Lowongan (satu objek)**\n\n```json\n{\n  \"message\": \"OK\",\n  \"data\": {\n    \"id\": 1,\n    \"employer_id\": 2,\n    \"title\": \"...\",\n    \"description\": \"...\",\n    \"status\": \"published\",\n    \"published_at\": \"2026-04-15T12:00:00+00:00\",\n    \"created_at\": \"...\",\n    \"updated_at\": \"...\"\n  }\n}\n```\n\n**Daftar paginasi (Laravel)**\n\nRespons memuat `data`, `links`, `meta` (dan sering `message`).\n\n**Lamaran (JobApplication)**\n\n`data` berisi `cover_letter`, `cv_file_path`, `cv_url` (jika ada file), `freelancer` { `id`, `name`, `email`, `role` }, `created_at`, dll.\n\n---\n\n## Kode status\n\n| HTTP | Kapan |\n|------|--------|\n| 200 | Sukses baca/ubah |\n| 201 | Register, create job, submit lamaran |\n| 401 | Tanpa token / token tidak valid |\n| 403 | Bukan pemilik lowongan / peran tidak cocok untuk route |\n| 404 | Freelancer meminta lowongan non-published |\n| 422 | Validasi gagal; login salah; sudah apply 2× ke lowongan sama |\n\n---\n\n## Validasi penting\n\n- **Register:** `password` min 8 karakter, `password_confirmation` harus sama; `role` ∈ `employer` | `freelancer`.\n- **Lamaran:** `cover_letter` wajib; `cv` opsional — `pdf`, `doc`, `docx`, max **5120 KB**.\n- **Satu lamaran per pasangan (freelancer, lowongan)** — percobaan kedua → 422 pada field `job`.\n",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    { "key": "base_url", "value": "http://localhost:8000/api" },
-    { "key": "token", "value": "" },
-    { "key": "job_id", "value": "1" }
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000/api",
+      "description": "Default koleksi; timpa dengan environment bila diimpor."
+    },
+    {
+      "key": "token",
+      "value": "",
+      "description": "Bearer token Sanctum."
+    },
+    {
+      "key": "job_id",
+      "value": "1",
+      "description": "ID lowongan (path parameter)."
+    }
   ],
   "item": [
     {
       "name": "Auth",
+      "description": "## Auth\n\nRegister & login **tanpa** Authorization. Endpoint lain: **Bearer {{token}}**.\n\nToken di respons: **data.token**. Request Login/Register punya **Tests** yang menyimpan token ke environment + collection.",
       "item": [
         {
           "name": "Register (employer)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Accept", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/v1/register",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"PT Contoh\",\n  \"email\": \"employer@example.com\",\n  \"password\": \"password123\",\n  \"password_confirmation\": \"password123\",\n  \"role\": \"employer\"\n}",
-              "options": { "raw": { "language": "json" } }
-            },
-            "url": "{{base_url}}/v1/register"
-          }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "description": "POST /v1/register — publik.\n\n**Body:** name, email, password, password_confirmation (min 8), role: employer.\n\n**201:** message, data.user, data.token, data.token_type.\n\n**422:** validasi.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "try {",
+                  "  const j = pm.response.json();",
+                  "  if ((pm.response.code === 200 || pm.response.code === 201) && j.data && j.data.token) {",
+                  "    pm.environment.set('token', j.data.token);",
+                  "    pm.collectionVariables.set('token', j.data.token);",
+                  "  }",
+                  "} catch (e) { /* ignore */ }"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Register (freelancer)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Accept", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/v1/register",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"Freelancer\",\n  \"email\": \"freelancer@example.com\",\n  \"password\": \"password123\",\n  \"password_confirmation\": \"password123\",\n  \"role\": \"freelancer\"\n}",
-              "options": { "raw": { "language": "json" } }
-            },
-            "url": "{{base_url}}/v1/register"
-          }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "description": "POST /v1/register — role harus freelancer.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "try {",
+                  "  const j = pm.response.json();",
+                  "  if ((pm.response.code === 200 || pm.response.code === 201) && j.data && j.data.token) {",
+                  "    pm.environment.set('token', j.data.token);",
+                  "    pm.collectionVariables.set('token', j.data.token);",
+                  "  }",
+                  "} catch (e) { /* ignore */ }"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Login",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Accept", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/v1/login",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"employer@mx100.test\",\n  \"password\": \"password\"\n}",
-              "options": { "raw": { "language": "json" } }
-            },
-            "url": "{{base_url}}/v1/login"
-          }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "description": "POST /v1/login — email, password.\n\n**200:** data.token (Tests simpan ke token).\n\n**422:** Invalid credentials.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "try {",
+                  "  const j = pm.response.json();",
+                  "  if ((pm.response.code === 200 || pm.response.code === 201) && j.data && j.data.token) {",
+                  "    pm.environment.set('token', j.data.token);",
+                  "    pm.collectionVariables.set('token', j.data.token);",
+                  "  }",
+                  "} catch (e) { /* ignore */ }"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Me (current user)",
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
             ],
             "url": "{{base_url}}/v1/user"
-          }
+          },
+          "description": "GET /v1/user — profil user dari token."
         },
         {
           "name": "Logout",
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
             ],
             "url": "{{base_url}}/v1/logout"
-          }
+          },
+          "description": "POST /v1/logout — revoke token saat ini."
         }
       ]
     },
     {
       "name": "Employer",
+      "description": "## Employer\n\nPeran **employer** (atau **superadmin**). Prefix **/v1/employer**. Hanya data employer_id = user login.",
       "item": [
         {
           "name": "List my jobs",
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
             ],
             "url": "{{base_url}}/v1/employer/jobs"
-          }
+          },
+          "description": "GET /v1/employer/jobs — semua lowongan saya, paginate 15."
         },
         {
           "name": "Create job (draft)",
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
             ],
+            "url": "{{base_url}}/v1/employer/jobs",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"title\": \"Backend Developer\",\n  \"description\": \"Membangun API dengan Laravel.\",\n  \"status\": \"draft\"\n}",
-              "options": { "raw": { "language": "json" } }
-            },
-            "url": "{{base_url}}/v1/employer/jobs"
-          }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "description": "POST /v1/employer/jobs — title, description required; status optional (default draft).\n\n**201:** Job created."
+        },
+        {
+          "name": "Create job (published)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{base_url}}/v1/employer/jobs",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Frontend Lead\",\n  \"description\": \"React + TypeScript.\",\n  \"status\": \"published\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "description": "POST /v1/employer/jobs — status published mengisi published_at."
         },
         {
           "name": "Get job",
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
             ],
             "url": "{{base_url}}/v1/employer/jobs/{{job_id}}"
-          }
+          },
+          "description": "GET /v1/employer/jobs/{id} — 403 jika bukan milik Anda."
         },
         {
-          "name": "Update job",
+          "name": "Update job (PATCH)",
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
             ],
+            "url": "{{base_url}}/v1/employer/jobs/{{job_id}}",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"title\": \"Backend Developer (updated)\",\n  \"description\": \"Deskripsi diperbarui.\"\n}",
-              "options": { "raw": { "language": "json" } }
-            },
-            "url": "{{base_url}}/v1/employer/jobs/{{job_id}}"
-          }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "description": "PATCH /v1/employer/jobs/{id} — title, description, status (optional).\n\nDraft membuat published_at null; published mengatur published_at."
+        },
+        {
+          "name": "Update job (PUT)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{base_url}}/v1/employer/jobs/{{job_id}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Backend Developer\",\n  \"description\": \"Deskripsi lengkap.\",\n  \"status\": \"draft\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "description": "PUT /v1/employer/jobs/{id} — sama dengan PATCH di server."
         },
         {
           "name": "Publish job",
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
             ],
             "url": "{{base_url}}/v1/employer/jobs/{{job_id}}/publish"
-          }
+          },
+          "description": "POST /v1/employer/jobs/{id}/publish — set published + published_at."
         },
         {
           "name": "List applications (CVs) for job",
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
             ],
             "url": "{{base_url}}/v1/employer/jobs/{{job_id}}/applications"
-          }
+          },
+          "description": "GET /v1/employer/jobs/{id}/applications — lamaran + freelancer; paginate 15.\n\ndata[]: cover_letter, cv_file_path, cv_url (jika ada), freelancer {id,name,email,role}."
         },
         {
           "name": "Delete job",
           "request": {
             "method": "DELETE",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
             ],
             "url": "{{base_url}}/v1/employer/jobs/{{job_id}}"
-          }
+          },
+          "description": "DELETE /v1/employer/jobs/{id} — hapus lowongan dan lamaran (cascade)."
         }
       ]
     },
     {
       "name": "Freelancer",
+      "description": "## Freelancer\n\nPeran **freelancer**. Path **/v1/jobs** (bukan employer). Hanya lowongan **published**.",
       "item": [
         {
           "name": "List published jobs",
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
             ],
             "url": "{{base_url}}/v1/jobs"
-          }
+          },
+          "description": "GET /v1/jobs — hanya published, order published_at desc."
         },
         {
           "name": "Get published job",
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
             ],
             "url": "{{base_url}}/v1/jobs/{{job_id}}"
-          }
+          },
+          "description": "GET /v1/jobs/{id} — 404 jika tidak published."
         },
         {
-          "name": "Submit application (CV)",
+          "name": "Submit application (multipart + CV)",
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
             ],
+            "url": "{{base_url}}/v1/jobs/{{job_id}}/applications",
             "body": {
               "mode": "formdata",
               "formdata": [
-                { "key": "cover_letter", "type": "text", "value": "Saya tertarik dengan posisi ini." },
-                { "key": "cv", "type": "file", "src": "", "disabled": true }
+                {
+                  "key": "cover_letter",
+                  "type": "text",
+                  "value": "Saya tertarik dengan posisi ini."
+                },
+                {
+                  "key": "cv",
+                  "type": "file",
+                  "src": "",
+                  "disabled": true
+                }
               ]
+            }
+          },
+          "description": "POST /v1/jobs/{id}/applications — multipart/form-data.\n\ncover_letter (required). cv optional: pdf,doc,docx max 5MB.\n\n**422:** sudah apply atau job tidak published."
+        },
+        {
+          "name": "Submit application (JSON, no file)",
+          "description": "POST /v1/jobs/{id}/applications — application/json.\n\nBody: {\"cover_letter\": \"...\"} saja. Tanpa file upload.",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cover_letter\": \"Saya tertarik dengan posisi ini (tanpa lampiran CV).\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": "{{base_url}}/v1/jobs/{{job_id}}/applications"
           }

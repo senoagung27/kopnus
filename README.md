@@ -142,7 +142,9 @@ Detail lengkap skema DB, aturan bisnis, dan urutan endpoint: [planning.md](plann
 
 1. Impor [postman/MX100.postman_collection.json](postman/MX100.postman_collection.json)
 2. Impor [postman/MX100.postman_environment.json](postman/MX100.postman_environment.json) — default `base_url` = **`http://localhost:8080/api`** (Docker). Untuk `php artisan serve` ganti ke **`http://localhost:8000/api`**.
-3. Setelah login/register, isi variabel `token` (Bearer).
+3. Pilih environment **MX100 Local** (atau sesuaikan `base_url`).
+4. **Dokumentasi lengkap** ada di koleksi: di Postman buka koleksi MX100 lalu tab **Documentation** / panel overview — deskripsi koleksi berisi tabel endpoint, kode status, contoh respons; setiap folder (Auth / Employer / Freelancer) dan setiap request punya penjelasan method, body, dan error umum. Request **Login** dan **Register** menyertakan skrip **Tests** yang menyalin `data.token` ke variabel `token` (environment + collection).
+5. Set `job_id` ke ID lowongan nyata (seed atau hasil **Create job**) sebelum memanggil path `.../jobs/{{job_id}}/...`.
 
 ## Sample data (seeder)
 
