@@ -18,7 +18,37 @@ REST API untuk portal pekerjaan MX100: perusahaan memposting lowongan (draft ata
 | Ekstensi | `pdo_mysql`, `mbstring`, `openssl`, `tokenizer`, `xml`, `ctype`, `json`, dll. (standar Laravel) |
 | Database | MySQL 8.x (atau kompatibel) untuk produksi/lokal; PHPUnit memakai SQLite in-memory |
 
-## Instalasi cepat (tanpa Docker)
+## Instalasi
+
+Pilih salah satu metode:
+
+- **A. Install via Docker Compose** (direkomendasikan untuk environment konsisten)
+- **B. Install tanpa Docker (Composer + MySQL lokal)** (jika ingin jalan langsung di host)
+
+### A. Install via Docker Compose
+
+Stack: **PHP-FPM** (`app`), **Nginx**, **MySQL 8**, **Adminer** (opsional UI database).
+
+```bash
+cp .env.example .env
+docker compose up -d --build
+docker compose exec app php artisan key:generate
+docker compose exec app php artisan migrate --seed
+docker compose exec app php artisan storage:link
+```
+
+| Akses | URL / koneksi |
+|-------|----------------|
+| API (Nginx) | `http://localhost:8080` — prefix API: `/api` → contoh `http://localhost:8080/api/v1/login` |
+| Port API | Ubah mapping dengan `APP_PORT` di `.env` (default **8080**) |
+| Adminer | `http://localhost:8082` (default) — server: **`mysql`** atau **`db`**, kredensial = `DB_*` yang dipakai Compose |
+| MySQL dari host (TablePlus, dll.) | Host `127.0.0.1`, port **`33060`** (default `MYSQL_PORT`) |
+
+Di dalam kontainer `app`, `DB_HOST` biasanya **`mysql`** (service Compose). Alias jaringan **`db`** disediakan agar cocok dengan konvensi nama host seperti Laravel Sail.
+
+File terkait: [`Dockerfile`](Dockerfile), [`docker-compose.yml`](docker-compose.yml), [`docker/nginx/default.conf`](docker/nginx/default.conf).
+
+### B. Install tanpa Docker (Composer + MySQL lokal)
 
 ```bash
 composer install
@@ -73,32 +103,6 @@ php artisan serve
 ```
 
 Basis URL: **`http://localhost:8000/api`** (sesuaikan host/port jika berbeda).
-
-## Docker Compose
-
-Stack: **PHP-FPM** (`app`), **Nginx**, **MySQL 8**, **Adminer** (opsional UI database).
-
-```bash
-docker compose up -d --build
-```
-
-| Akses | URL / koneksi |
-|-------|----------------|
-| API (Nginx) | `http://localhost:8080` — prefix API: `/api` → contoh `http://localhost:8080/api/v1/login` |
-| Port API | Ubah mapping dengan `APP_PORT` di `.env` (default **8080**) |
-| Adminer | `http://localhost:8082` (default) — server: **`mysql`** atau **`db`**, kredensial = `DB_*` yang dipakai Compose |
-| MySQL dari host (TablePlus, dll.) | Host `127.0.0.1`, port **`33060`** (default `MYSQL_PORT`) |
-
-Di dalam kontainer `app`, `DB_HOST` biasanya **`mysql`** (service Compose). Alias jaringan **`db`** disediakan agar cocok dengan konvensi nama host seperti Laravel Sail.
-
-Setelah kontainer jalan (dan migrasi + seed jika perlu):
-
-```bash
-docker compose exec app php artisan migrate --seed
-docker compose exec app php artisan storage:link
-```
-
-File: [`Dockerfile`](Dockerfile), [`docker-compose.yml`](docker-compose.yml), [`docker/nginx/default.conf`](docker/nginx/default.conf).
 
 ## Autentikasi
 
